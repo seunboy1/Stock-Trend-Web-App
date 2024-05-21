@@ -1,80 +1,81 @@
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from keras.models import load_model
 import streamlit as st
 import matplotlib.pyplot as plt
+from pandas_datareader import data as pdr
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import load_model
 
-model = load_model('C:\Python\Stock\Stock Predictions Model.keras')
+
+start = "2010-01-01"
+end = "2019-12-31"
 
 st.header('Stock Market Predictor')
+stock =st.text_input('Enter Stock Symnbol', 'AAPL')
 
-stock =st.text_input('Enter Stock Symnbol', 'GOOG')
-start = '2012-01-01'
-end = '2022-12-31'
+yf.pdr_override() 
+df = pdr.get_data_yahoo(stock, start=start, end=end)
 
-data = yf.download(stock, start ,end)
 
-st.subheader('Stock Data')
-st.write(data)
-
-data_train = pd.DataFrame(data.Close[0: int(len(data)*0.80)])
-data_test = pd.DataFrame(data.Close[int(len(data)*0.80): len(data)])
-
-from sklearn.preprocessing import MinMaxScaler
-scaler = MinMaxScaler(feature_range=(0,1))
-
-pas_100_days = data_train.tail(100)
-data_test = pd.concat([pas_100_days, data_test], ignore_index=True)
-data_test_scale = scaler.fit_transform(data_test)
-
-st.subheader('Price vs MA50')
-ma_50_days = data.Close.rolling(50).mean()
-fig1 = plt.figure(figsize=(8,6))
-plt.plot(ma_50_days, 'r')
-plt.plot(data.Close, 'g')
-plt.show()
-st.pyplot(fig1)
-
-st.subheader('Price vs MA50 vs MA100')
-ma_100_days = data.Close.rolling(100).mean()
-fig2 = plt.figure(figsize=(8,6))
-plt.plot(ma_50_days, 'r')
-plt.plot(ma_100_days, 'b')
-plt.plot(data.Close, 'g')
-plt.show()
-st.pyplot(fig2)
+st.subheader('Stock Data from 2010 - 2019')
+st.write(df)
 
 st.subheader('Price vs MA100 vs MA200')
-ma_200_days = data.Close.rolling(200).mean()
-fig3 = plt.figure(figsize=(8,6))
-plt.plot(ma_100_days, 'r')
-plt.plot(ma_200_days, 'b')
-plt.plot(data.Close, 'g')
-plt.show()
-st.pyplot(fig3)
-
-x = []
-y = []
-
-for i in range(100, data_test_scale.shape[0]):
-    x.append(data_test_scale[i-100:i])
-    y.append(data_test_scale[i,0])
-
-x,y = np.array(x), np.array(y)
-
-predict = model.predict(x)
-
-scale = 1/scaler.scale_
-
-predict = predict * scale
-y = y * scale
-
-st.subheader('Original Price vs Predicted Price')
-fig4 = plt.figure(figsize=(8,6))
-plt.plot(predict, 'r', label='Original Price')
-plt.plot(y, 'g', label = 'Predicted Price')
+ma100 = df.Close.rolling(100).mean()
+ma200 = df.Close.rolling(200).mean()
+fig1 = plt.figure(figsize=(12,6))
+plt.plot(ma100, 'r', label = 'ma100')
+plt.plot(ma200, 'b', label = 'ma200')
+plt.plot(df.Close, 'g', label = 'Close')
 plt.xlabel('Time')
 plt.ylabel('Price')
-plt.show()
-st.pyplot(fig4)
+plt.legend()
+st.pyplot(fig1)
+
+
+# Splitting Data into Training and Testing 
+
+d = int(len(df)*0.75)
+data_training = pd.DataFrame(df['Close'][0:d])
+data_testing = pd.DataFrame(df['Close'][d:])
+
+
+# Load my model
+model = load_model('artifact/stock_model.h5')
+
+
+# get testing data
+pas_100_days = data_training.tail(100)
+data_test = pd.concat([pas_100_days, data_testing], ignore_index=True)
+
+scaler = MinMaxScaler()
+data_test_scale = scaler.fit_transform(data_test)
+
+x_test = []
+y_test = []
+
+for i in range(100, data_test_scale.shape[0]):
+    x_test.append(data_test_scale[i-100:i])
+    y_test.append(data_test_scale[i,0])
+x_test, y_test = np.array(x_test), np.array(y_test)
+
+y_predict = model.predict(x_test)
+
+scale =1/scaler.scale_
+y_predict = y_predict*scale
+y_test = y_test*scale
+
+st.subheader('')
+st.subheader('')
+st.subheader('')
+st.subheader('')
+st.subheader('Predicted Price vs Original Price')
+
+fig2 = plt.figure(figsize=(12,6))
+plt.plot(y_predict, 'r', label = 'Predicted Price')
+plt.plot(y_test, 'g', label = 'Original Price')
+plt.xlabel('Time')
+plt.ylabel('Price')
+plt.legend()
+st.pyplot(fig2)
