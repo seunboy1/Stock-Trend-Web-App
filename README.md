@@ -1,2 +1,3 @@
 # Stock-Trend-Web-App
-A Stock Trend Prediction Web Application in Python. 
+
+This Streamlit app demonstrates a basic stock market prediction framework using historical price data. It allows users to enter a stock symbol and visualize key metrics, along with a prediction for future closing prices.
